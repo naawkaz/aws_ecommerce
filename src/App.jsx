@@ -298,7 +298,7 @@ function SearchImageDisplay({ imageFile, onImageClick, predictedCategory }) {
   const imageUrl = imageFile instanceof File ? URL.createObjectURL(imageFile) : imageFile;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-4 mb-6 relative">
+    <div className="bg-white rounded-lg shadow-sm p-4 mb-4 relative">
       {/* AI Detected Category - Top Right */}
       {predictedCategory && (
         <div className="absolute top-4 right-4">
@@ -646,47 +646,61 @@ function QuantitySelector({ quantity, onQuantityChange }) {
   );
 }
 
-// Filter Sidebar Component
-function FilterSidebar() {
+// Horizontal Filter Bar Component
+// Horizontal Filter Bar Component
+// Horizontal Filter Bar Component
+function FilterBar() {
   return (
-    <div className="w-64 bg-white rounded-lg shadow-sm p-6 h-fit">
-      <h3 className="font-semibold text-gray-900 mb-4">Filters</h3>
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-          <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-            <option>All Categories</option>
-            <option>Footwear</option>
-            <option>Outerwear</option>
-            <option>Electronics</option>
-            <option>Accessories</option>
-            <option>Sportswear</option>
-          </select>
+    <div className="bg-white rounded-lg shadow-sm px-6 py-3 mb-6 border border-gray-200">
+      <div className="flex items-center justify-between gap-6">
+        <div className="flex items-center gap-1">
+          <h3 className="text-sm font-semibold text-gray-900">Refine AI Search</h3>
+          <span className="text-xs text-gray-500">• Filters help AI find more precise matches</span>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Brand</label>
-          <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-            <option>All Brands</option>
-            <option>New Balance</option>
-            <option>WeatherShield</option>
-            <option>SoundMax</option>
-            <option>TechWear</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
-          <div className="flex space-x-2">
-            <input
-              type="number"
-              placeholder="Min"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
-            <input
-              type="number"
-              placeholder="Max"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-            />
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-700">Category</label>
+            <select className="border border-gray-300 rounded-full px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+              <option>All Categories</option>
+              {/* <option>Footwear</option>
+              <option>Outerwear</option>
+              <option>Electronics</option>
+              <option>Accessories</option>
+              <option>Sportswear</option> */}
+            </select>
           </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-700">Brand</label>
+            <select className="border border-gray-300 rounded-full px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+              <option>All Brands</option>
+              {/* <option>New Balance</option>
+              <option>WeatherShield</option>
+              <option>SoundMax</option>
+              <option>TechWear</option> */}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-700">Price</label>
+            <div className="flex gap-1">
+              <input
+                type="number"
+                placeholder="Min"
+                className="w-16 border border-gray-300 rounded-full px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <input
+                type="number"
+                placeholder="Max"
+                className="w-16 border border-gray-300 rounded-full px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <button className="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors text-sm font-medium">
+            Filter
+          </button>
         </div>
       </div>
     </div>
@@ -697,8 +711,8 @@ function FilterSidebar() {
 function ProductGrid({ products, onProductClick, onAddToCart, columns = 4 }) {
   const gridClass = {
     3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
-    4: "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
-  }[columns] || "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
+    4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+  }[columns] || "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
   return (
     <div className={`grid ${gridClass} gap-6`}>
@@ -756,16 +770,14 @@ function ResultsPage({ searchQuery, onSearchChange, onSearch, onImageSearch, onP
         onImageSearch={onImageSearch}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-start mb-6">
           <button
             onClick={onBack}
-            className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 mb-6 transition-colors cursor-pointer"
+            className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
           >
             <ArrowLeftIcon />
             <span>Back to Discovery</span>
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Results</h1>
-          <span className="text-gray-600">Showing {duplicatedProducts.length} Products</span>
         </div>
 
         {/* Search Image Display */}
@@ -775,14 +787,23 @@ function ResultsPage({ searchQuery, onSearchChange, onSearch, onImageSearch, onP
           predictedCategory={predictedCategory}
         />
 
-        <div className="flex gap-8">
-          <FilterSidebar />
-          <div className="flex-1">
+        {/* Horizontal Filter Bar */}
+        <FilterBar />
+
+        {/* Results Heading - Now below filter bar */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Results</h1>
+          <span className="text-gray-600">Showing {duplicatedProducts.length} Products</span>
+        </div>
+
+        {/* Centered Product Grid */}
+        <div className="flex justify-center">
+          <div className="max-w-6xl w-full">
             <ProductGrid
               products={duplicatedProducts}
               onProductClick={onProductClick}
               onAddToCart={onAddToCart}
-              columns={3}
+              columns={4}
             />
           </div>
         </div>
