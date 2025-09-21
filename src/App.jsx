@@ -1,4 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
+import { useDropzone } from "react-dropzone";
+import Cropper from "react-easy-crop";
 
 // Custom Icons (no external dependencies needed)
 function CameraIcon() {
@@ -122,7 +124,6 @@ const getSampleProducts = () => [
   }
 ];
 
-
 // Utility functions
 const formatPrice = (price) => `RM ${price.toFixed(0)}`;
 
@@ -130,46 +131,356 @@ const showNotification = (message) => {
   alert(message); // In real app, use toast library
 };
 
-// Image Upload Modal Component
-function ImageUploadModal({ isOpen, onClose, onImageSelect }) {
-  const fileInputRef = useRef(null);
+// Utility function to create cropped image
+const createImage = (url) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener('load', () => resolve(image));
+    image.addEventListener('error', (error) => reject(error));
+    image.setAttribute('crossOrigin', 'anonymous');
+    image.src = url;
+  });
 
-  if (!isOpen) return null;
+const getCroppedImg = async (imageSrc, pixelCrop) => {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      onImageSelect(file);
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  );
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      resolve(blob);
+    }, 'image/jpeg', 0.9);
+  });
+};
+
+// Prominent Search Section Component
+function ProminentSearchSection({ searchQuery, onSearchChange, onSearch, onImageSearch }) {
+  const [showImageUpload, setShowImageUpload] = useState(false);
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      onSearch();
     }
   };
 
+  const handleImageSelect = (file) => {
+    onImageSearch(file);
+    setShowImageUpload(false);
+  };
+
   return (
-    <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-white border rounded-lg shadow-lg p-4 z-50 w-80">
-      <h3 className="text-lg font-semibold mb-3">Search by Image</h3>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+    <div className="max-w-4xl mx-auto mb-12">
+      <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-2">Find what you're looking for</h2>
+          <p className="text-gray-600">Upload an image to discover similar products</p>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              placeholder="Search for products, brands, categories..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="w-full px-6 py-4 text-lg border border-gray-300 rounded-2xl focus:outline-none focus:ring-3 focus:ring-blue-500 focus:border-transparent shadow-sm"
+            />
+          </div>
+          <button
+            onClick={() => setShowImageUpload(!showImageUpload)}
+            className="p-4 bg-gray-100 hover:bg-gray-200 rounded-2xl transition-colors shadow-sm group"
+            title="Search by image"
+          >
+            <CameraIcon />
+          </button>
+          <button
+            onClick={onSearch}
+            className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition-colors font-semibold shadow-sm hover:shadow-md transform hover:scale-105"
+          >
+            Search
+          </button>
+        </div>
+
+      </div>
+
+      {/* Image Upload Modal */}
+      <ImageUploadModal
+        isOpen={showImageUpload}
+        onClose={() => setShowImageUpload(false)}
+        onImageSelect={handleImageSelect}
       />
-      <div className="mt-3 flex space-x-2">
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Choose Image
-        </button>
-        <button
-          onClick={onClose}
-          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-        >
-          Cancel
-        </button>
+    </div>
+  );
+}
+
+// Simplified Header for Discovery Page
+function DiscoveryHeader() {
+  return (
+    <div className="bg-white shadow-sm border-b sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <div className="flex items-center space-x-2">
+            <div className="text-2xl">🔺</div>
+            <span className="text-xl font-bold text-gray-900">Serverless and senseless</span>
+          </div>
+
+          {/* Right Icons */}
+          <div className="flex items-center space-x-3">
+            <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <UserIcon />
+            </button>
+            <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <CartIcon />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
-};
+}
+
+
+
+// Image Preview Modal Component
+function ImagePreviewModal({ isOpen, imageFile, onClose }) {
+  if (!isOpen || !imageFile) return null;
+
+  const imageUrl = imageFile instanceof File ? URL.createObjectURL(imageFile) : imageFile;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div className="max-w-4xl max-h-[90vh] mx-4">
+        <div className="bg-white rounded-lg overflow-hidden">
+          <div className="p-4 border-b flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Search Image Preview</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+            >
+              ×
+            </button>
+          </div>
+          <div className="p-4">
+            <img
+              src={imageUrl}
+              alt="Search preview"
+              className="max-w-full max-h-[70vh] object-contain mx-auto"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Search Image Display Component
+// Search Image Display Component
+function SearchImageDisplay({ imageFile, onImageClick, predictedCategory }) {
+  if (!imageFile) return null;
+
+  const imageUrl = imageFile instanceof File ? URL.createObjectURL(imageFile) : imageFile;
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-4 mb-6 relative">
+      {/* AI Detected Category - Top Right */}
+      {predictedCategory && (
+        <div className="absolute top-4 right-4">
+          <p className="text-xl text-blue-500 font-medium bg-blue-50 px-3 py-1 rounded-full border border-green-200">
+            🔎 Detected sub-category: {predictedCategory}
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-center space-x-4">
+        <div className="flex-shrink-0">
+          <img
+            src={imageUrl}
+            alt="Search image"
+            className="w-20 h-20 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={onImageClick}
+          />
+        </div>
+        <div className="flex-1 pr-32">
+          <div className="flex items-center space-x-3 mb-2">
+            <h3 className="font-medium text-gray-900">Searching with this image</h3>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Click image to view full size</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Improved Image Upload Modal Component
+function ImageUploadModal({ isOpen, onClose, onImageSelect }) {
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [showCropper, setShowCropper] = useState(false);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
+  const onDrop = (acceptedFiles) => {
+    const file = acceptedFiles[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setUploadedImage(reader.result);
+        setShowCropper(true);
+        // Reset crop state when new image is loaded
+        setCrop({ x: 0, y: 0 });
+        setZoom(1);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.bmp', '.webp']
+    },
+    maxFiles: 1
+  });
+
+  const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleCropConfirm = async () => {
+    try {
+      const croppedImageBlob = await getCroppedImg(uploadedImage, croppedAreaPixels);
+
+      // Create a File object from the blob
+      const croppedFile = new File([croppedImageBlob], "cropped-image.jpg", {
+        type: "image/jpeg"
+      });
+
+      onImageSelect(croppedFile);
+      handleClose();
+    } catch (error) {
+      console.error('Error cropping image:', error);
+    }
+  };
+
+  const handleClose = () => {
+    setUploadedImage(null);
+    setShowCropper(false);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    onClose();
+  };
+
+  const handleCancel = () => {
+    setShowCropper(false);
+    setUploadedImage(null);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-hidden">
+        <div className="p-4 border-b">
+          <h3 className="text-lg font-semibold">Search by Image</h3>
+        </div>
+
+        <div className="p-4">
+          {!showCropper ? (
+            <div
+              {...getRootProps()}
+              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                }`}
+            >
+              <input {...getInputProps()} />
+              <div className="flex flex-col items-center space-y-2">
+                <CameraIcon />
+                <p className="text-gray-600">
+                  {isDragActive ? "Drop the image here..." : "Drag & drop an image here, or click to choose"}
+                </p>
+                <p className="text-sm text-gray-400">
+                  Supports: JPG, PNG, GIF, WebP
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="relative h-64 bg-gray-100 rounded-lg overflow-hidden">
+                <Cropper
+                  image={uploadedImage}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Zoom: {Math.round(zoom * 100)}%
+                  </label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={3}
+                    step={0.1}
+                    value={zoom}
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleCropConfirm}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Use Cropped Image
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t bg-gray-50 flex justify-end">
+          <button
+            onClick={handleClose}
+            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Header Component
 function Header({ searchQuery, onSearchChange, onSearch, onImageSearch }) {
@@ -187,7 +498,7 @@ function Header({ searchQuery, onSearchChange, onSearch, onImageSearch }) {
   };
 
   return (
-    <div className="bg-white shadow-sm border-b sticky top-0 z-50">
+    <div className="bg-white shadow-sm border-b sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -266,7 +577,6 @@ const ProductImage = ({ productName, imageUrl, isLarge }) => {
   );
 };
 
-
 // Product Card Component
 function ProductCard({ product, onProductClick, onAddToCart }) {
   const handleCardClick = () => {
@@ -284,7 +594,7 @@ function ProductCard({ product, onProductClick, onAddToCart }) {
       onClick={handleCardClick}
     >
       <div className="aspect-w-16 aspect-h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-t-xl flex items-center justify-center">
-        <ProductImage productName={product.name} imageUrl={product.imageUrl}/>
+        <ProductImage productName={product.name} imageUrl={product.imageUrl} />
       </div>
       <div className="p-4">
         <h3 className="font-semibold text-gray-900 text-lg mb-1">{product.name}</h3>
@@ -349,7 +659,7 @@ function FilterSidebar() {
             <option>Footwear</option>
             <option>Outerwear</option>
             <option>Electronics</option>
-            <option>Accessories</option>  
+            <option>Accessories</option>
             <option>Sportswear</option>
           </select>
         </div>
@@ -390,7 +700,7 @@ function ProductGrid({ products, onProductClick, onAddToCart, columns = 4 }) {
     4: "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
   }[columns] || "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
 
-  return ( 
+  return (
     <div className={`grid ${gridClass} gap-6`}>
       {products.map((product, index) => (
         <ProductCard
@@ -410,13 +720,16 @@ function DiscoveryPage({ searchQuery, onSearchChange, onSearch, onImageSearch, o
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header
-        searchQuery={searchQuery}
-        onSearchChange={onSearchChange}
-        onSearch={onSearch}
-        onImageSearch={onImageSearch}
-      />
+      <DiscoveryHeader />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Prominent Search Section */}
+        <ProminentSearchSection
+          searchQuery={searchQuery}
+          onSearchChange={onSearchChange}
+          onSearch={onSearch}
+          onImageSearch={onImageSearch}
+        />
+
         <h1 className="text-4xl font-bold text-center text-gray-900 mb-8">Discover</h1>
         <ProductGrid
           products={products}
@@ -429,7 +742,8 @@ function DiscoveryPage({ searchQuery, onSearchChange, onSearch, onImageSearch, o
   );
 }
 
-function ResultsPage({ searchQuery, onSearchChange, onSearch, onImageSearch, onProductClick, onAddToCart, onBack }) {
+function ResultsPage({ searchQuery, onSearchChange, onSearch, onImageSearch, onProductClick, onAddToCart, onBack, searchImage, predictedCategory }) {
+  const [showImagePreview, setShowImagePreview] = useState(false);
   const products = getSampleProducts();
   const duplicatedProducts = [...products, ...products];
 
@@ -454,6 +768,13 @@ function ResultsPage({ searchQuery, onSearchChange, onSearch, onImageSearch, onP
           <span className="text-gray-600">Showing {duplicatedProducts.length} Products</span>
         </div>
 
+        {/* Search Image Display */}
+        <SearchImageDisplay
+          imageFile={searchImage}
+          onImageClick={() => setShowImagePreview(true)}
+          predictedCategory={predictedCategory}
+        />
+
         <div className="flex gap-8">
           <FilterSidebar />
           <div className="flex-1">
@@ -465,6 +786,13 @@ function ResultsPage({ searchQuery, onSearchChange, onSearch, onImageSearch, onP
             />
           </div>
         </div>
+
+        {/* Image Preview Modal */}
+        <ImagePreviewModal
+          isOpen={showImagePreview}
+          imageFile={searchImage}
+          onClose={() => setShowImagePreview(false)}
+        />
       </div>
     </div>
   );
@@ -503,10 +831,10 @@ function ProductDetailPage({ searchQuery, onSearchChange, onSearch, onImageSearc
             {/* Product Images */}
             <div className="p-8">
               <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center mb-4">
-                <ProductImage 
-                productName={selectedProduct.name} 
-                isLarge 
-                imageUrl={selectedProduct.imageUrl} 
+                <ProductImage
+                  productName={selectedProduct.name}
+                  isLarge
+                  imageUrl={selectedProduct.imageUrl}
                 />
               </div>
               <div className="grid grid-cols-4 gap-2">
@@ -568,6 +896,8 @@ function App() {
   const [currentPage, setCurrentPage] = useState('discovery');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchImage, setSearchImage] = useState(null);
+  const [predictedCategory, setPredictedCategory] = useState(null);
 
   // Navigation functions
   const navigateToResults = () => setCurrentPage('results');
@@ -575,17 +905,30 @@ function App() {
     setSelectedProduct(product);
     setCurrentPage('product');
   };
-  const navigateToDiscovery = () => setCurrentPage('discovery');
+
+  const navigateToDiscovery = () => {
+    setCurrentPage('discovery');
+    // Clear search states when going back to discovery
+    setPredictedCategory(null);
+    setSearchImage(null);
+  };
 
   // Search functions
   const handleSearch = () => {
     if (searchQuery.trim()) {
       navigateToResults();
+    } else {
+      showNotification('Please enter a search term or upload an image');
     }
   };
 
   const handleImageSearch = (file) => {
-    showNotification(`Searching with image: ${file.name}`);
+    setSearchImage(file);
+
+    // Simulate AWS Lambda prediction (replace with actual API call later)
+    setPredictedCategory('Sandals');
+
+    showNotification(`Searching with image: ${file.name} (${Math.round(file.size / 1024)}KB)`);
     navigateToResults();
   };
 
@@ -607,9 +950,11 @@ function App() {
   // Page routing
   switch (currentPage) {
     case 'results':
-      return <ResultsPage 
-      {...commonProps} 
-      onBack={navigateToDiscovery}
+      return <ResultsPage
+        {...commonProps}
+        onBack={navigateToDiscovery}
+        searchImage={searchImage}
+        predictedCategory={predictedCategory}
       />;
     case 'product':
       return (
